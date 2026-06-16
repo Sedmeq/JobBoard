@@ -1,5 +1,4 @@
-﻿using System.Text;
-using FluentValidation;
+﻿using FluentValidation;
 using JobBoard.Application.Validators;
 using JobBoard.Core.Interfaces;
 using JobBoard.Core.Settings;
@@ -10,6 +9,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using StackExchange.Redis;
+using System.Text;
 using System.Threading.RateLimiting;
 
 namespace JobBoard.API.Extensions
@@ -54,6 +55,29 @@ namespace JobBoard.API.Extensions
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IJobService, JobService>();
+            services.AddScoped<ICompanyService, CompanyService>();
+            services.AddScoped<ICategoryService, CategoryService>();
+
+            services.AddScoped<IApplicationService, ApplicationService>();
+            services.AddScoped<ICandidateService, CandidateService>();
+            services.AddScoped<IAlertService, AlertService>();
+            services.AddScoped<ISavedJobService, SavedJobService>();
+            services.AddScoped<INotificationService, NotificationService>();
+
+            // Redis (optional — mövcud deyilsə null qaytar)
+            services.AddSingleton<IConnectionMultiplexer?>(sp =>
+            {
+                try
+                {
+                    var config = sp.GetRequiredService<IConfiguration>();
+                    var connStr = config["Redis:ConnectionString"];
+                    if (string.IsNullOrWhiteSpace(connStr)) return null;
+                    return ConnectionMultiplexer.Connect(connStr);
+                }
+                catch { return null; }
+            });
+
             return services;
         }
 

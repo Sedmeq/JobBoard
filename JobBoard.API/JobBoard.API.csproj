@@ -27,4 +27,8 @@
     <ProjectReference Include="..\JobBoard.Infrastructure\JobBoard.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\uploads\" />
+  </ItemGroup>
+
 </Project>
