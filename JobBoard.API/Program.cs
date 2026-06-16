@@ -1,5 +1,7 @@
 using JobBoard.API.Extensions;
 using JobBoard.API.Middleware;
+using JobBoard.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +35,14 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+// Seed Data
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await SeedData.SeedAsync(db);
 }
 
 app.UseCors("AllowFrontend");

@@ -65,6 +65,9 @@ namespace JobBoard.API.Extensions
             services.AddScoped<ISavedJobService, SavedJobService>();
             services.AddScoped<INotificationService, NotificationService>();
 
+            services.AddScoped<IBlogService, BlogService>();
+            services.AddScoped<ITransactionService, TransactionService>();
+
             // Redis (optional — mövcud deyilsə null qaytar)
             services.AddSingleton<IConnectionMultiplexer?>(sp =>
             {
