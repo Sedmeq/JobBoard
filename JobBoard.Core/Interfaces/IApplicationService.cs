@@ -18,5 +18,6 @@ namespace JobBoard.Core.Interfaces
         Task WithdrawAsync(int id, int userId);
         Task<ApplicationStatsDto> GetStatsAsync(int userId);
         Task<PagedResponse<ApplicationListDto>> GetJobApplicantsAsync(int jobId, int userId, string userRole, ApplicationFilterDto filter);
+        Task<PagedResponse<CompanyApplicantDto>> GetCompanyApplicantsAsync(int userId, int page, int pageSize);
     }
 }

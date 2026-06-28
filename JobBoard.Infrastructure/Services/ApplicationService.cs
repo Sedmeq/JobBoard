@@ -52,8 +52,28 @@ namespace JobBoard.Infrastructure.Services
 
             var user = await _db.Users
                 .Include(u => u.CandidateProfile)
+                    .ThenInclude(p => p.Skills)
                 .FirstOrDefaultAsync(u => u.Id == userId)
                 ?? throw new NotFoundException("İstifadəçi tapılmadı.");
+
+            // Profil tamamlanmayıbsa müraciətə icazə verilmir
+            var profile = user.CandidateProfile;
+            var missing = new List<string>();
+            if (profile == null)
+            {
+                missing.Add("profil məlumatları");
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(profile.Headline)) missing.Add("Başlıq (Headline)");
+                if (string.IsNullOrWhiteSpace(profile.Summary)) missing.Add("Xülasə (Summary)");
+                if (string.IsNullOrWhiteSpace(profile.Location)) missing.Add("Məkan (Location)");
+                if (profile.Skills == null || !profile.Skills.Any()) missing.Add("Bacarıqlar (Skills)");
+            }
+            if (missing.Any())
+                throw new BadRequestException(
+                    "Müraciət etməzdən əvvəl profilinizi tamamlayın. Çatışmayan məlumatlar: " +
+                    string.Join(", ", missing) + ".");
 
             string? resumeUrl = dto.ResumeUrl;
             if (dto.UseProfileResume && string.IsNullOrWhiteSpace(resumeUrl))
@@ -272,6 +292,57 @@ namespace JobBoard.Infrastructure.Services
                 TotalCount = total,
                 Page = filter.Page,
                 PageSize = filter.PageSize
+            };
+        }
+
+        public async Task<PagedResponse<CompanyApplicantDto>> GetCompanyApplicantsAsync(int userId, int page, int pageSize)
+        {
+            var company = await _db.Companies.FirstOrDefaultAsync(c => c.UserId == userId)
+                ?? throw new NotFoundException("Şirkət tapılmadı.");
+
+            var apps = await _db.JobApplications
+                .Include(a => a.User)
+                    .ThenInclude(u => u.CandidateProfile)
+                        .ThenInclude(p => p.Skills)
+                .Where(a => a.Job.CompanyId == company.Id && a.Status != "withdrawn")
+                .OrderByDescending(a => a.AppliedAt)
+                .ToListAsync();
+
+            var distinct = apps
+                .GroupBy(a => a.UserId)
+                .Select(g =>
+                {
+                    var latest = g.First(); // AppliedAt desc sıralanıb
+                    var u = latest.User;
+                    var profile = u.CandidateProfile;
+                    return new CompanyApplicantDto
+                    {
+                        Id = u.Id,
+                        FullName = u.FullName,
+                        Email = u.Email,
+                        AvatarUrl = u.AvatarUrl,
+                        Headline = profile?.Headline,
+                        Location = profile?.Location,
+                        ExperienceYears = profile?.ExperienceYears,
+                        ResumeUrl = g.Select(x => x.ResumeUrl).FirstOrDefault(x => !string.IsNullOrEmpty(x))
+                                    ?? profile?.ResumeUrl,
+                        Skills = profile?.Skills.Select(s => s.Name).ToList() ?? [],
+                        AppliedJobsCount = g.Count(),
+                        LastAppliedAt = g.Max(x => x.AppliedAt)
+                    };
+                })
+                .OrderByDescending(d => d.LastAppliedAt)
+                .ToList();
+
+            var total = distinct.Count;
+            var items = distinct.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            return new PagedResponse<CompanyApplicantDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
             };
         }
 

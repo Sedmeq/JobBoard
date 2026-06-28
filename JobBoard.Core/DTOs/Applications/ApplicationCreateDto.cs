@@ -77,4 +77,19 @@ namespace JobBoard.Core.DTOs.Applications
         public int Rejected { get; set; }
         public int Withdrawn { get; set; }
     }
+
+    public class CompanyApplicantDto
+    {
+        public int Id { get; set; }
+        public string FullName { get; set; } = null!;
+        public string Email { get; set; } = null!;
+        public string? AvatarUrl { get; set; }
+        public string? Headline { get; set; }
+        public string? Location { get; set; }
+        public int? ExperienceYears { get; set; }
+        public string? ResumeUrl { get; set; }
+        public List<string> Skills { get; set; } = [];
+        public int AppliedJobsCount { get; set; }
+        public DateTime LastAppliedAt { get; set; }
+    }
 }

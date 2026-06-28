@@ -41,6 +41,7 @@ namespace JobBoard.API.Controllers
         }
 
         [HttpPost]
+        [HttpPost("~/api/admin/categories")]
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> Create([FromBody] CategoryCreateDto dto)
         {

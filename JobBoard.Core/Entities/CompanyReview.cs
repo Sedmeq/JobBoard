@@ -32,6 +32,11 @@ namespace JobBoard.Core.Entities
         public string? Phone { get; set; }
         public bool IsRead { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        // Admin cavabı
+        public bool IsReplied { get; set; }
+        public string? ReplyMessage { get; set; }
+        public DateTime? RepliedAt { get; set; }
     }
 
     public class NewsletterSubscriber

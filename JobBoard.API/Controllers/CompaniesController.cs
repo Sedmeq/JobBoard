@@ -54,9 +54,19 @@ namespace JobBoard.API.Controllers
 
         [HttpPut("me")]
         [Authorize(Roles = "employer")]
-        public async Task<IActionResult> UpdateMyCompany([FromBody] CompanyUpdateDto dto)
+        public async Task<IActionResult> UpdateMyCompany(
+            [FromForm] CompanyUpdateDto dto,
+            IFormFile? logo,
+            IFormFile? coverImage)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            // Fayllar varsa əvvəlcə onları yüklə, sonra profili yenilə (cavabda yeni URL-lər görünsün)
+            if (logo is not null)
+                await _companyService.UploadLogoAsync(userId, logo);
+            if (coverImage is not null)
+                await _companyService.UploadCoverAsync(userId, coverImage);
+
             var result = await _companyService.UpdateMyCompanyAsync(userId, dto);
             return Ok(ApiResponse<CompanyDetailDto>.Ok(result, "Şirkət profili yeniləndi."));
         }

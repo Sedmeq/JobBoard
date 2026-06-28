@@ -67,5 +67,13 @@ namespace JobBoard.API.Controllers
             var result = await _appService.GetStatsAsync(UserId);
             return Ok(ApiResponse<ApplicationStatsDto>.Ok(result));
         }
+
+        [HttpGet("applicants")]
+        [Authorize(Roles = "employer")]
+        public async Task<IActionResult> GetCompanyApplicants([FromQuery] int page = 1, [FromQuery] int pageSize = 8)
+        {
+            var result = await _appService.GetCompanyApplicantsAsync(UserId, page, pageSize);
+            return Ok(ApiResponse<PagedResponse<CompanyApplicantDto>>.Ok(result));
+        }
     }
 }

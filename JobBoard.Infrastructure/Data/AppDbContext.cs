@@ -36,6 +36,11 @@ namespace JobBoard.Infrastructure.Data
         public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
+        public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
+
+        // Chat
+        public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -73,6 +78,11 @@ namespace JobBoard.Infrastructure.Data
                 .HasIndex(n => n.Email)
                 .IsUnique()
                 .HasDatabaseName("IX_NewsletterSubscribers_Email_Unique");
+
+            modelBuilder.Entity<SiteSetting>()
+                .HasIndex(s => s.Key)
+                .IsUnique()
+                .HasDatabaseName("IX_SiteSettings_Key_Unique");
 
             modelBuilder.Entity<CandidateProfile>()
                 .HasIndex(cp => cp.UserId)
@@ -283,6 +293,17 @@ namespace JobBoard.Infrastructure.Data
                 .WithMany(u => u.Notifications)
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // ChatConversation -> ChatMessage (One-to-Many)
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Conversation)
+                .WithMany(c => c.Messages)
+                .HasForeignKey(m => m.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatConversation>()
+                .HasIndex(c => c.ApplicationId)
+                .HasDatabaseName("IX_ChatConversations_ApplicationId");
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

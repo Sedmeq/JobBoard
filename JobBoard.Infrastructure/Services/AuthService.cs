@@ -83,6 +83,11 @@ namespace JobBoard.Infrastructure.Services
             if (!user.IsActive)
                 throw new UnauthorizedException("Hesabınız deaktiv edilib.");
 
+            if (user.IsBanned)
+                throw new UnauthorizedException(string.IsNullOrWhiteSpace(user.BanReason)
+                    ? "Hesabınız admin tərəfindən ban edilib."
+                    : $"Hesabınız ban edilib: {user.BanReason}");
+
             var accessToken = _tokenService.GenerateAccessToken(user);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
@@ -117,6 +122,9 @@ namespace JobBoard.Infrastructure.Services
 
             if (user == null || user.RefreshTokenExpiry < DateTime.UtcNow)
                 throw new UnauthorizedException("Refresh token etibarsızdır və ya müddəti bitib.");
+
+            if (user.IsBanned || !user.IsActive)
+                throw new UnauthorizedException("Hesabınıza giriş məhdudlaşdırılıb.");
 
             var newAccessToken = _tokenService.GenerateAccessToken(user);
             var newRefreshToken = _tokenService.GenerateRefreshToken();

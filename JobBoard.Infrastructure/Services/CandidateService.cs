@@ -302,6 +302,36 @@ namespace JobBoard.Infrastructure.Services
             await _db.SaveChangesAsync();
         }
 
+        public async Task<string> UploadAvatarAsync(int userId, IFormFile file)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId)
+                ?? throw new NotFoundException("İstifadəçi tapılmadı.");
+
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp" };
+            if (!allowedTypes.Contains(file.ContentType))
+                throw new BadRequestException("Yalnız JPEG, PNG və WEBP formatları qəbul edilir.");
+
+            if (file.Length > 5 * 1024 * 1024)
+                throw new BadRequestException("Şəkil ölçüsü 5MB-dan çox ola bilməz.");
+
+            var uploadsPath = Path.Combine("wwwroot", "uploads", "avatars");
+            Directory.CreateDirectory(uploadsPath);
+
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+
+            await using var stream = File.Create(filePath);
+            await file.CopyToAsync(stream);
+
+            var baseUrl = _config["Storage:BaseUrl"];
+            var url = $"{baseUrl}/uploads/avatars/{fileName}";
+
+            user.AvatarUrl = url;
+            await _db.SaveChangesAsync();
+
+            return url;
+        }
+
         // --- Helpers ---
 
         private async Task<CandidateProfile> GetProfileAsync(int userId)
@@ -312,6 +342,7 @@ namespace JobBoard.Infrastructure.Services
         {
             Id = c.User.Id,
             FullName = c.User.FullName,
+            Email = c.User.Email,
             AvatarUrl = c.User.AvatarUrl,
             Headline = c.Headline,
             Summary = c.Summary,

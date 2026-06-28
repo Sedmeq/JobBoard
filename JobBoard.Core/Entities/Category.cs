@@ -11,6 +11,7 @@ namespace JobBoard.Core.Entities
         public int Id { get; set; }
         public string Name { get; set; } = null!;
         public string Slug { get; set; } = null!;
+        public string? Description { get; set; }
         public string? IconClass { get; set; }
         public string? Color { get; set; }
         public int SortOrder { get; set; }

@@ -206,7 +206,12 @@ namespace JobBoard.Infrastructure.Services
     public class NotificationService : INotificationService
     {
         private readonly AppDbContext _db;
-        public NotificationService(AppDbContext db) => _db = db;
+        private readonly INotificationPublisher _publisher;
+        public NotificationService(AppDbContext db, INotificationPublisher publisher)
+        {
+            _db = db;
+            _publisher = publisher;
+        }
 
         public async Task<IEnumerable<NotificationDto>> GetNotificationsAsync(int userId)
             => await _db.Notifications
@@ -233,6 +238,7 @@ namespace JobBoard.Infrastructure.Services
 
             notification.IsRead = true;
             await _db.SaveChangesAsync();
+            await PushUnreadCountAsync(userId);
         }
 
         public async Task MarkAllAsReadAsync(int userId)
@@ -245,12 +251,13 @@ namespace JobBoard.Infrastructure.Services
                 n.IsRead = true;
 
             await _db.SaveChangesAsync();
+            await PushUnreadCountAsync(userId);
         }
 
         public async Task CreateNotificationAsync(
             int userId, string title, string message, string type, string? actionUrl = null)
         {
-            _db.Notifications.Add(new Notification
+            var notification = new Notification
             {
                 UserId = userId,
                 Title = title,
@@ -259,8 +266,28 @@ namespace JobBoard.Infrastructure.Services
                 ActionUrl = actionUrl,
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            _db.Notifications.Add(notification);
             await _db.SaveChangesAsync();
+
+            // Real-time yayım (SignalR)
+            await _publisher.PushToUserAsync(userId, new NotificationDto
+            {
+                Id = notification.Id,
+                Title = notification.Title,
+                Message = notification.Message,
+                Type = notification.Type,
+                IsRead = false,
+                ActionUrl = notification.ActionUrl,
+                CreatedAt = notification.CreatedAt
+            });
+            await PushUnreadCountAsync(userId);
+        }
+
+        private async Task PushUnreadCountAsync(int userId)
+        {
+            var unread = await _db.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
+            await _publisher.PushUnreadCountAsync(userId, unread);
         }
     }
 }

@@ -123,6 +123,14 @@ namespace JobBoard.API.Controllers
             return Ok(ApiResponse.Ok("CV silindi."));
         }
 
+        [HttpPost("me/avatar")]
+        [Authorize(Roles = "candidate")]
+        public async Task<IActionResult> UploadAvatar(IFormFile file)
+        {
+            var url = await _candidateService.UploadAvatarAsync(UserId, file);
+            return Ok(ApiResponse<object>.Ok(new { url }, "Profil şəkli yükləndi."));
+        }
+
         [HttpGet("{id:int}/applications")]
         [Authorize(Roles = "employer,admin")]
         public async Task<IActionResult> GetApplicants(int id, [FromQuery] ApplicationFilterDto filter)

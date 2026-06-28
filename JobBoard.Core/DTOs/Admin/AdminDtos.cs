@@ -37,6 +37,9 @@ namespace JobBoard.Core.DTOs.Admin
         public string Role { get; set; } = null!;
         public bool IsEmailVerified { get; set; }
         public bool IsActive { get; set; }
+        public bool IsBanned { get; set; }
+        public string? BanReason { get; set; }
+        public DateTime? BannedAt { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -46,9 +49,40 @@ namespace JobBoard.Core.DTOs.Admin
         public string? Reason { get; set; }
     }
 
+    /// <summary>İstifadəçini ban etmək / banı götürmək üçün.</summary>
+    public class AdminBanUserDto
+    {
+        public bool IsBanned { get; set; }
+        public string? Reason { get; set; }
+    }
+
     public class AdminVerifyCompanyDto
     {
         public bool IsVerified { get; set; }
+    }
+
+    public class AdminCompanyListDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = null!;
+        public string? Industry { get; set; }
+        public string? Location { get; set; }
+        public int JobsCount { get; set; }
+        public bool IsVerified { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class AdminTransactionListDto
+    {
+        public int Id { get; set; }
+        public string? OrderId { get; set; }
+        public string TransactionType { get; set; } = null!;
+        public decimal Amount { get; set; }
+        public string Currency { get; set; } = null!;
+        public string? PaymentMethod { get; set; }
+        public string Status { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public string? UserFullName { get; set; }
     }
 
     public class ContactMessageDto
@@ -61,6 +95,9 @@ namespace JobBoard.Core.DTOs.Admin
         public string? Phone { get; set; }
         public bool IsRead { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool IsReplied { get; set; }
+        public string? ReplyMessage { get; set; }
+        public DateTime? RepliedAt { get; set; }
     }
 
     public class ContactCreateDto
@@ -70,6 +107,43 @@ namespace JobBoard.Core.DTOs.Admin
         public string Subject { get; set; } = null!;
         public string Message { get; set; } = null!;
         public string? Phone { get; set; }
+        public string? RecaptchaToken { get; set; }
+    }
+
+    public class ContactReplyDto
+    {
+        public string Message { get; set; } = null!;
+    }
+
+    /// <summary>Açar-dəyər prinsipi ilə əlaqə məlumatı (Address, Email, Phone və s.).</summary>
+    public class ContactInfoItemDto
+    {
+        public string Key { get; set; } = null!;
+        public string Value { get; set; } = null!;
+    }
+
+    /// <summary>Contact səhifəsi üçün public məlumatlar (əlaqə + xəritə + reCAPTCHA site key).</summary>
+    public class ContactPublicInfoDto
+    {
+        public string? Address { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? WorkingHours { get; set; }
+        public string? MapEmbedUrl { get; set; }
+        public bool RecaptchaEnabled { get; set; }
+        public string? RecaptchaSiteKey { get; set; }
+    }
+
+    /// <summary>Admin paneldən idarə olunan sayt parametrləri.</summary>
+    public class SiteSettingsDto
+    {
+        public string? ContactAddress { get; set; }
+        public string? ContactEmail { get; set; }
+        public string? ContactPhone { get; set; }
+        public string? ContactWorkingHours { get; set; }
+        public string? MapEmbedUrl { get; set; }
+        public bool RecaptchaEnabled { get; set; }
+        public string? RecaptchaSiteKey { get; set; }
     }
 
     public class NewsletterSubscribeDto

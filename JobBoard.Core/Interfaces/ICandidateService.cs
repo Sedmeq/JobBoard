@@ -24,5 +24,6 @@ namespace JobBoard.Core.Interfaces
         Task DeleteEducationAsync(int userId, int eduId);
         Task<string> UploadResumeAsync(int userId, IFormFile file);
         Task DeleteResumeAsync(int userId);
+        Task<string> UploadAvatarAsync(int userId, IFormFile file);
     }
 }

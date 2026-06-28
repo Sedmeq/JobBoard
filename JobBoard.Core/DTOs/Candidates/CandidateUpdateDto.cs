@@ -103,6 +103,7 @@ namespace JobBoard.Core.DTOs.Candidates
 
     public class CandidateDetailDto : CandidateListDto
     {
+        public string? Email { get; set; }
         public string? Summary { get; set; }
         public string? Website { get; set; }
         public string? LinkedInUrl { get; set; }

@@ -16,10 +16,12 @@ namespace JobBoard.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IConfiguration _config;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IConfiguration config)
         {
             _authService = authService;
+            _config = config;
         }
 
         /// <summary>Yeni istifadəçi qeydiyyatı</summary>
@@ -63,10 +65,12 @@ namespace JobBoard.API.Controllers
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
         {
             var result = await _authService.VerifyEmailAsync(token);
-            if (!result)
-                return BadRequest(ApiResponse.Fail("INVALID_TOKEN", "Token etibarsızdır."));
+            var frontendBaseUrl = (_config["App:FrontendBaseUrl"] ?? "http://127.0.0.1:5500").TrimEnd('/');
 
-            return Redirect("http://localhost:3000/login?verified=true");
+            if (!result)
+                return Redirect($"{frontendBaseUrl}/login-3.html?verified=false");
+
+            return Redirect($"{frontendBaseUrl}/login-3.html?verified=true");
         }
 
         /// <summary>Şifrə sıfırlama emaili göndər</summary>

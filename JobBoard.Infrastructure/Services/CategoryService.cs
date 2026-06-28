@@ -32,6 +32,7 @@ namespace JobBoard.Infrastructure.Services
                 Id = c.Id,
                 Name = c.Name,
                 Slug = c.Slug,
+                Description = c.Description,
                 IconClass = c.IconClass,
                 Color = c.Color,
                 SortOrder = c.SortOrder,
@@ -113,7 +114,8 @@ namespace JobBoard.Infrastructure.Services
             {
                 Name = dto.Name,
                 Slug = slug,
-                IconClass = dto.IconClass,
+                Description = dto.Description,
+                IconClass = dto.IconClass ?? dto.Icon,
                 Color = dto.Color,
                 SortOrder = dto.SortOrder
             };
@@ -126,6 +128,7 @@ namespace JobBoard.Infrastructure.Services
                 Id = category.Id,
                 Name = category.Name,
                 Slug = category.Slug,
+                Description = category.Description,
                 IconClass = category.IconClass,
                 Color = category.Color,
                 SortOrder = category.SortOrder,
@@ -139,7 +142,8 @@ namespace JobBoard.Infrastructure.Services
                 ?? throw new NotFoundException("Kateqoriya tapılmadı.");
 
             category.Name = dto.Name;
-            category.IconClass = dto.IconClass;
+            category.Description = dto.Description;
+            category.IconClass = dto.IconClass ?? dto.Icon;
             category.Color = dto.Color;
             category.SortOrder = dto.SortOrder;
 
@@ -150,6 +154,7 @@ namespace JobBoard.Infrastructure.Services
                 Id = category.Id,
                 Name = category.Name,
                 Slug = category.Slug,
+                Description = category.Description,
                 IconClass = category.IconClass,
                 Color = category.Color,
                 SortOrder = category.SortOrder

@@ -16,8 +16,13 @@ namespace JobBoard.API.Controllers
     public class JobsController : ControllerBase
     {
         private readonly IJobService _jobService;
+        private readonly ISavedJobService _savedJobService;
 
-        public JobsController(IJobService jobService) => _jobService = jobService;
+        public JobsController(IJobService jobService, ISavedJobService savedJobService)
+        {
+            _jobService = jobService;
+            _savedJobService = savedJobService;
+        }
 
         private int? CurrentUserId =>
             User.Identity?.IsAuthenticated == true
@@ -117,6 +122,7 @@ namespace JobBoard.API.Controllers
         }
 
         [HttpGet("my-jobs")]
+        [HttpGet("my")]
         [Authorize(Roles = "employer")]
         public async Task<IActionResult> GetMyJobs(
             [FromQuery] string? status,
@@ -137,6 +143,23 @@ namespace JobBoard.API.Controllers
             var result = await applicationService.GetJobApplicantsAsync(
                 id, CurrentUserId ?? 0, UserRole ?? "", filter);
             return Ok(ApiResponse<PagedResponse<ApplicationListDto>>.Ok(result));
+        }
+
+        [HttpPost("{id:int}/save")]
+        [Authorize]
+        public async Task<IActionResult> SaveJob(int id)
+        {
+            await _savedJobService.SaveJobAsync(CurrentUserId!.Value, id);
+            return StatusCode(201, ApiResponse.Ok("İlan saxlanıldı."));
+        }
+
+        [HttpPost("{id:int}/unsave")]
+        [HttpDelete("{id:int}/save")]
+        [Authorize]
+        public async Task<IActionResult> UnsaveJob(int id)
+        {
+            await _savedJobService.UnsaveJobAsync(CurrentUserId!.Value, id);
+            return Ok(ApiResponse.Ok("İlan siyahıdan çıxarıldı."));
         }
     }
 }

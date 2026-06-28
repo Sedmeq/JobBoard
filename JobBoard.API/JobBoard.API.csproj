@@ -31,4 +31,9 @@
     <Folder Include="wwwroot\uploads\" />
   </ItemGroup>
 
+  <!-- .env faylını (varsa) build output qovluğuna kopyala ki, bin-dən işlədəndə də tapılsın. -->
+  <ItemGroup>
+    <None Include=".env" Condition="Exists('.env')" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

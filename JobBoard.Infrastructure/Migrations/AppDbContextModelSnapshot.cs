@@ -256,6 +256,9 @@ namespace JobBoard.Infrastructure.Migrations
                     b.Property<string>("Color")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("IconClass")
                         .HasColumnType("nvarchar(max)");
 
@@ -277,6 +280,78 @@ namespace JobBoard.Infrastructure.Migrations
                         .HasDatabaseName("IX_Categories_Slug_Unique");
 
                     b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("JobBoard.Core.Entities.ChatConversation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ApplicationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CandidateUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EmployerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("JobId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("LastMessageAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId")
+                        .HasDatabaseName("IX_ChatConversations_ApplicationId");
+
+                    b.ToTable("ChatConversations");
+                });
+
+            modelBuilder.Entity("JobBoard.Core.Entities.ChatMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ConversationId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("SenderUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.ToTable("ChatMessages");
                 });
 
             modelBuilder.Entity("JobBoard.Core.Entities.Company", b =>
@@ -420,6 +495,9 @@ namespace JobBoard.Infrastructure.Migrations
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsReplied")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -429,6 +507,12 @@ namespace JobBoard.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RepliedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReplyMessage")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Subject")
@@ -848,6 +932,33 @@ namespace JobBoard.Infrastructure.Migrations
                     b.ToTable("SavedJobs");
                 });
 
+            modelBuilder.Entity("JobBoard.Core.Entities.SiteSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SiteSettings_Key_Unique");
+
+                    b.ToTable("SiteSettings");
+                });
+
             modelBuilder.Entity("JobBoard.Core.Entities.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -909,6 +1020,12 @@ namespace JobBoard.Infrastructure.Migrations
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("BanReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("BannedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -924,6 +1041,9 @@ namespace JobBoard.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsBanned")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsDarkMode")
@@ -1086,6 +1206,17 @@ namespace JobBoard.Infrastructure.Migrations
                     b.Navigation("CandidateProfile");
                 });
 
+            modelBuilder.Entity("JobBoard.Core.Entities.ChatMessage", b =>
+                {
+                    b.HasOne("JobBoard.Core.Entities.ChatConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("JobBoard.Core.Entities.Company", b =>
                 {
                     b.HasOne("JobBoard.Core.Entities.User", "User")
@@ -1172,7 +1303,7 @@ namespace JobBoard.Infrastructure.Migrations
                     b.HasOne("JobBoard.Core.Entities.User", "User")
                         .WithMany("Applications")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Job");
@@ -1224,7 +1355,7 @@ namespace JobBoard.Infrastructure.Migrations
                     b.HasOne("JobBoard.Core.Entities.User", "User")
                         .WithMany("SavedJobs")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Job");
@@ -1280,6 +1411,11 @@ namespace JobBoard.Infrastructure.Migrations
             modelBuilder.Entity("JobBoard.Core.Entities.Category", b =>
                 {
                     b.Navigation("Jobs");
+                });
+
+            modelBuilder.Entity("JobBoard.Core.Entities.ChatConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("JobBoard.Core.Entities.Company", b =>

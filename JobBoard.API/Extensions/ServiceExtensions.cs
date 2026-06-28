@@ -45,6 +45,22 @@ namespace JobBoard.API.Extensions
                             Encoding.UTF8.GetBytes(jwtSettings.Secret)),
                         ClockSkew = TimeSpan.Zero
                     };
+
+                    // SignalR — token query string-dən oxunur (WebSocket header dəstəkləmir)
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"];
+                            var path = context.HttpContext.Request.Path;
+                            if (!string.IsNullOrEmpty(accessToken) &&
+                                path.StartsWithSegments("/hubs"))
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
                 });
 
             return services;
@@ -64,9 +80,13 @@ namespace JobBoard.API.Extensions
             services.AddScoped<IAlertService, AlertService>();
             services.AddScoped<ISavedJobService, SavedJobService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<INotificationPublisher, JobBoard.API.Services.SignalRNotificationPublisher>();
+            services.AddScoped<IChatService, ChatService>();
 
             services.AddScoped<IBlogService, BlogService>();
             services.AddScoped<ITransactionService, TransactionService>();
+            services.AddScoped<ISiteSettingsService, SiteSettingsService>();
+            services.AddHttpClient<IRecaptchaService, RecaptchaService>();
 
             // Redis (optional — mövcud deyilsə null qaytar)
             services.AddSingleton<IConnectionMultiplexer?>(sp =>

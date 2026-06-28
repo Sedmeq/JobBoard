@@ -19,6 +19,11 @@ namespace JobBoard.Core.Entities
         public bool IsEmailVerified { get; set; }
         public bool IsActive { get; set; } = true;
         public bool IsDeleted { get; set; }
+
+        // ==================== BAN (admin tərəfindən) ====================
+        public bool IsBanned { get; set; }
+        public string? BanReason { get; set; }
+        public DateTime? BannedAt { get; set; }
         public string? EmailVerificationToken { get; set; }
         public string? PasswordResetToken { get; set; }
         public DateTime? PasswordResetTokenExpiry { get; set; }
