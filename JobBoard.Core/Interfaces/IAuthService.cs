@@ -40,5 +40,7 @@ namespace JobBoard.Core.Interfaces
         Task SendApplicationStatusChangedAsync(string toEmail, string candidateName, string jobTitle, string status);
         Task SendContactReplyAsync(string toEmail, string name, string originalSubject, string replyMessage);
         Task SendChatStartedAsync(string toEmail, string candidateName, string companyName, string jobTitle, string chatLink);
+        Task SendCompanyVerifiedAsync(string toEmail, string name, string companyName);
+        Task SendJobAlertMatchAsync(string toEmail, string name, string jobTitle, string companyName, int jobId);
     }
 }

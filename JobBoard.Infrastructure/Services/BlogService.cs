@@ -4,9 +4,12 @@ using JobBoard.Core.Entities;
 using JobBoard.Core.Exceptions;
 using JobBoard.Core.Interfaces;
 using JobBoard.Infrastructure.Data;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,7 +20,32 @@ namespace JobBoard.Infrastructure.Services
     public class BlogService : IBlogService
     {
         private readonly AppDbContext _db;
-        public BlogService(AppDbContext db) => _db = db;
+        private readonly IConfiguration _config;
+        public BlogService(AppDbContext db, IConfiguration config)
+        {
+            _db = db;
+            _config = config;
+        }
+
+        public async Task<string> UploadImageAsync(IFormFile file)
+        {
+            var allowed = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+            if (file == null || !allowed.Contains(file.ContentType))
+                throw new BadRequestException("Yalnız JPEG, PNG, WEBP və GIF formatları qəbul edilir.");
+            if (file.Length > 5 * 1024 * 1024)
+                throw new BadRequestException("Şəkil ölçüsü 5MB-dan çox ola bilməz.");
+
+            var uploadsPath = Path.Combine("wwwroot", "uploads", "blog");
+            Directory.CreateDirectory(uploadsPath);
+
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+            await using var stream = File.Create(filePath);
+            await file.CopyToAsync(stream);
+
+            var baseUrl = _config["Storage:BaseUrl"];
+            return $"{baseUrl}/uploads/blog/{fileName}";
+        }
 
         public async Task<PagedResponse<BlogPostListDto>> GetPostsAsync(BlogFilterDto filter, bool isAdmin)
         {
@@ -45,8 +73,29 @@ namespace JobBoard.Infrastructure.Services
             if (filter.IsFeatured.HasValue)
                 query = query.Where(b => b.IsFeatured == filter.IsFeatured.Value);
 
+            // Tag value-converter (string[] ↔ ";"-joined) səbəbilə SQL-ə tərcümə olunmur → yaddaşda filtrlə
             if (!string.IsNullOrWhiteSpace(filter.Tag))
-                query = query.Where(b => b.Tags != null && b.Tags.Contains(filter.Tag));
+            {
+                var tag = filter.Tag.Trim();
+                var all = await query
+                    .OrderByDescending(b => b.PublishedAt ?? b.CreatedAt)
+                    .ToListAsync();
+                var matched = all
+                    .Where(b => b.Tags != null && b.Tags.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+                var pagedByTag = matched
+                    .Skip((filter.Page - 1) * filter.PageSize)
+                    .Take(filter.PageSize)
+                    .Select(b => MapToListDto(b))
+                    .ToList();
+                return new PagedResponse<BlogPostListDto>
+                {
+                    Items = pagedByTag,
+                    TotalCount = matched.Count,
+                    Page = filter.Page,
+                    PageSize = filter.PageSize
+                };
+            }
 
             var total = await query.CountAsync();
             var items = await query
@@ -219,6 +268,38 @@ namespace JobBoard.Infrastructure.Services
 
             comment.IsDeleted = true;
             await _db.SaveChangesAsync();
+        }
+
+        public async Task<PagedResponse<AdminBlogCommentDto>> GetAllCommentsAsync(int page, int pageSize)
+        {
+            var query = _db.BlogComments
+                .Include(c => c.User)
+                .Include(c => c.BlogPost)
+                .OrderByDescending(c => c.CreatedAt);
+
+            var total = await query.CountAsync();
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(c => new AdminBlogCommentDto
+                {
+                    Id = c.Id,
+                    Content = c.Content,
+                    AuthorName = c.User != null ? c.User.FullName : "User",
+                    PostId = c.BlogPostId,
+                    PostTitle = c.BlogPost != null ? c.BlogPost.Title : "(deleted)",
+                    PostSlug = c.BlogPost != null ? c.BlogPost.Slug : "",
+                    CreatedAt = c.CreatedAt
+                })
+                .ToListAsync();
+
+            return new PagedResponse<AdminBlogCommentDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
         public async Task<IEnumerable<BlogCategoryStatsDto>> GetCategoriesAsync()

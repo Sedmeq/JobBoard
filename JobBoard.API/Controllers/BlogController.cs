@@ -82,6 +82,14 @@ namespace JobBoard.API.Controllers
             return Ok(ApiResponse.Ok("Şərh silindi."));
         }
 
+        [HttpGet("comments")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> GetAllComments([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var result = await _blogService.GetAllCommentsAsync(page, pageSize);
+            return Ok(ApiResponse<PagedResponse<AdminBlogCommentDto>>.Ok(result));
+        }
+
         [HttpGet("categories")]
         public async Task<IActionResult> GetCategories()
         {
@@ -94,6 +102,14 @@ namespace JobBoard.API.Controllers
         {
             var result = await _blogService.GetTagsAsync();
             return Ok(ApiResponse<IEnumerable<BlogTagDto>>.Ok(result));
+        }
+
+        [HttpPost("upload-image")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> UploadImage(IFormFile file)
+        {
+            var url = await _blogService.UploadImageAsync(file);
+            return Ok(ApiResponse<object>.Ok(new { url }, "Şəkil yükləndi."));
         }
     }
 }

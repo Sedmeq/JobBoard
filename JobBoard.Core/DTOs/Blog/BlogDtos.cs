@@ -95,4 +95,15 @@ namespace JobBoard.Core.DTOs.Blog
         public string Tag { get; set; } = null!;
         public int Count { get; set; }
     }
+
+    public class AdminBlogCommentDto
+    {
+        public int Id { get; set; }
+        public string Content { get; set; } = null!;
+        public string AuthorName { get; set; } = null!;
+        public int PostId { get; set; }
+        public string PostTitle { get; set; } = null!;
+        public string PostSlug { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+    }
 }

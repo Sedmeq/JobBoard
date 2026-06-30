@@ -72,6 +72,18 @@ namespace JobBoard.Core.DTOs.Admin
         public DateTime CreatedAt { get; set; }
     }
 
+    public class AdminJobListDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = null!;
+        public string? CompanyName { get; set; }
+        public string? CategoryName { get; set; }
+        public string? Location { get; set; }
+        public string Status { get; set; } = null!;
+        public int ApplicationCount { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
     public class AdminTransactionListDto
     {
         public int Id { get; set; }

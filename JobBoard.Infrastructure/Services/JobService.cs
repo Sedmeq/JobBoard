@@ -19,11 +19,71 @@ namespace JobBoard.Infrastructure.Services
     {
         private readonly AppDbContext _db;
         private readonly IConnectionMultiplexer? _redis;
+        private readonly INotificationService _notificationService;
+        private readonly IEmailService _emailService;
 
-        public JobService(AppDbContext db, IConnectionMultiplexer? redis = null)
+        public JobService(
+            AppDbContext db,
+            INotificationService notificationService,
+            IEmailService emailService,
+            IConnectionMultiplexer? redis = null)
         {
             _db = db;
+            _notificationService = notificationService;
+            _emailService = emailService;
             _redis = redis;
+        }
+
+        private async Task NotifyMatchingAlertsAsync(Job job, string companyName, List<string> skills)
+        {
+            var alerts = await _db.JobAlerts
+                .Include(a => a.User)
+                .Where(a => a.IsActive)
+                .ToListAsync();
+
+            var titleLower = (job.Title ?? "").ToLowerInvariant();
+            var descLower = (job.Description ?? "").ToLowerInvariant();
+            var locLower = (job.Location ?? "").ToLowerInvariant();
+            var skillsLower = (skills ?? new List<string>())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.ToLowerInvariant())
+                .ToList();
+            var notified = new HashSet<int>();
+
+            foreach (var a in alerts)
+            {
+                if (a.CategoryId.HasValue && a.CategoryId.Value != job.CategoryId) continue;
+                if (!string.IsNullOrWhiteSpace(a.JobType) &&
+                    !string.Equals(a.JobType, job.JobType, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.IsNullOrWhiteSpace(a.Location) &&
+                    !locLower.Contains(a.Location.ToLowerInvariant())) continue;
+
+                // Mətn meyarları: alert adı (Name) və keyword (varsa) — hər ikisi nəzərə alınır.
+                // Yalnız Name varsa Name-ə görə, həm Name həm keyword varsa hər ikisi uyğun olmalıdır.
+                var terms = new List<string>();
+                if (!string.IsNullOrWhiteSpace(a.Name)) terms.Add(a.Name.Trim().ToLowerInvariant());
+                if (!string.IsNullOrWhiteSpace(a.Keyword)) terms.Add(a.Keyword.Trim().ToLowerInvariant());
+                if (terms.Count > 0 &&
+                    !terms.All(term => titleLower.Contains(term)
+                        || descLower.Contains(term)
+                        || skillsLower.Any(sk => sk.Contains(term))))
+                    continue;
+
+                if (!notified.Add(a.UserId)) continue; // hər istifadəçiyə bir dəfə
+
+                await _notificationService.CreateNotificationAsync(
+                    a.UserId,
+                    "Yeni uyğun vakansiya",
+                    $"\"{job.Title}\" ({companyName}) sizin iş bildirişinizə uyğundur.",
+                    "job_alert",
+                    $"job-detail.html?id={job.Id}");
+
+                if (a.User != null && !string.IsNullOrWhiteSpace(a.User.Email))
+                {
+                    try { await _emailService.SendJobAlertMatchAsync(a.User.Email, a.User.FullName, job.Title, companyName, job.Id); }
+                    catch { /* email xətası bloklamamalıdır */ }
+                }
+            }
         }
 
         public async Task<PagedResponse<JobListDto>> GetJobsAsync(JobFilterDto filter, int? currentUserId)
@@ -256,6 +316,9 @@ namespace JobBoard.Infrastructure.Services
             }
 
             await InvalidateJobCacheAsync();
+
+            // Uyğun job alert-i olan istifadəçilərə bildiriş + email
+            try { await NotifyMatchingAlertsAsync(job, company.Name, dto.RequiredSkills?.ToList() ?? new List<string>()); } catch { /* bloklamamalıdır */ }
 
             return await GetJobByIdAsync(job.Id, userId, null);
         }

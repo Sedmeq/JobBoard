@@ -17,7 +17,9 @@ namespace JobBoard.Core.Interfaces
         Task DeletePostAsync(int id);
         Task<BlogCommentDto> AddCommentAsync(int postId, int userId, BlogCommentCreateDto dto);
         Task DeleteCommentAsync(int commentId, int userId, string userRole);
+        Task<PagedResponse<AdminBlogCommentDto>> GetAllCommentsAsync(int page, int pageSize);
         Task<IEnumerable<BlogCategoryStatsDto>> GetCategoriesAsync();
         Task<IEnumerable<BlogTagDto>> GetTagsAsync();
+        Task<string> UploadImageAsync(Microsoft.AspNetCore.Http.IFormFile file);
     }
 }

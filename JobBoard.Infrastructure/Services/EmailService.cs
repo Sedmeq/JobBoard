@@ -168,5 +168,35 @@ namespace JobBoard.Infrastructure.Services
         """;
             await SendAsync(toEmail, $"{companyName} sizinlə əlaqə saxlayır — {jobTitle}", html);
         }
+
+        public async Task SendCompanyVerifiedAsync(string toEmail, string name, string companyName)
+        {
+            var html = $"""
+            <h2>Təbriklər, {name}!</h2>
+            <p><strong>{companyName}</strong> şirkət hesabınız admin tərəfindən təsdiqləndi.</p>
+            <p>Artıq iş elanları yerləşdirə və namizəd müraciətlərini idarə edə bilərsiniz.</p>
+            <a href="{_frontendBaseUrl}/company-post-jobs.html" style="background:#1c8a55;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">
+                İş Elanı Yerləşdir
+            </a>
+            """;
+            await SendAsync(toEmail, "Şirkətiniz təsdiqləndi ✅", html);
+        }
+
+        public async Task SendJobAlertMatchAsync(string toEmail, string name, string jobTitle, string companyName, int jobId)
+        {
+            var link = $"{_frontendBaseUrl}/job-detail.html?id={jobId}";
+            var html = $"""
+            <h2>Salam, {name}!</h2>
+            <p>İş bildirişinizə (Job Alert) uyğun yeni vakansiya yaranıb:</p>
+            <div style="background:#f5f5f7;border-left:4px solid #2e55fa;padding:16px 20px;margin:16px 0;border-radius:6px;">
+                <strong style="font-size:16px;">{jobTitle}</strong><br>
+                <span style="color:#6b7280;">{companyName}</span>
+            </div>
+            <a href="{link}" style="background:#2e55fa;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">
+                Vakansiyaya Bax
+            </a>
+            """;
+            await SendAsync(toEmail, $"Yeni uyğun vakansiya: {jobTitle}", html);
+        }
     }
 }

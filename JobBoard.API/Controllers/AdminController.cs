@@ -1,6 +1,7 @@
 ﻿using JobBoard.Core.DTOs.Admin;
 using JobBoard.Core.DTOs.Common;
 using JobBoard.Core.Exceptions;
+using JobBoard.Core.Interfaces;
 using JobBoard.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +18,14 @@ namespace JobBoard.API.Controllers
     public class AdminController : ControllerBase
     {
         private readonly AppDbContext _db;
-        public AdminController(AppDbContext db) => _db = db;
+        private readonly INotificationService _notificationService;
+        private readonly IEmailService _emailService;
+        public AdminController(AppDbContext db, INotificationService notificationService, IEmailService emailService)
+        {
+            _db = db;
+            _notificationService = notificationService;
+            _emailService = emailService;
+        }
 
         [HttpGet("dashboard")]
         public async Task<IActionResult> GetDashboard()
@@ -206,6 +214,66 @@ namespace JobBoard.API.Controllers
             }));
         }
 
+        [HttpGet("jobs")]
+        public async Task<IActionResult> GetJobs(
+            [FromQuery] string? keyword,
+            [FromQuery] string? status,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var query = _db.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Category)
+                .Include(j => j.Applications)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+                query = query.Where(j => j.Title.Contains(keyword) || j.Company.Name.Contains(keyword));
+
+            if (!string.IsNullOrWhiteSpace(status))
+                query = query.Where(j => j.Status == status);
+
+            var total = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(j => j.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(j => new AdminJobListDto
+                {
+                    Id = j.Id,
+                    Title = j.Title,
+                    CompanyName = j.Company != null ? j.Company.Name : null,
+                    CategoryName = j.Category != null ? j.Category.Name : null,
+                    Location = j.Location,
+                    Status = j.Status,
+                    ApplicationCount = j.Applications.Count,
+                    CreatedAt = j.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(ApiResponse<PagedResponse<AdminJobListDto>>.Ok(new PagedResponse<AdminJobListDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            }));
+        }
+
+        [HttpDelete("jobs/{id:int}")]
+        public async Task<IActionResult> DeleteJob(int id)
+        {
+            var job = await _db.Jobs.FirstOrDefaultAsync(j => j.Id == id)
+                ?? throw new NotFoundException("İlan tapılmadı.");
+
+            job.IsDeleted = true;
+            job.Status = "closed";
+            job.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return Ok(ApiResponse.Ok("İlan silindi."));
+        }
+
         [HttpGet("transactions")]
         public async Task<IActionResult> GetTransactions(
             [FromQuery] string? status,
@@ -248,12 +316,27 @@ namespace JobBoard.API.Controllers
         [HttpPatch("companies/{id:int}/verify")]
         public async Task<IActionResult> VerifyCompany(int id, [FromBody] AdminVerifyCompanyDto dto)
         {
-            var company = await _db.Companies.FindAsync(id)
+            var company = await _db.Companies.Include(c => c.User).FirstOrDefaultAsync(c => c.Id == id)
                 ?? throw new NotFoundException("Şirkət tapılmadı.");
 
+            var wasVerified = company.IsVerified;
             company.IsVerified = dto.IsVerified;
             company.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+
+            // Yeni təsdiqləndikdə işəgötürənə bildiriş + email
+            if (dto.IsVerified && !wasVerified && company.User != null)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    company.UserId,
+                    "Şirkətiniz təsdiqləndi",
+                    "Şirkət hesabınız admin tərəfindən təsdiqləndi. Artıq iş elanı yerləşdirə bilərsiniz.",
+                    "company_verified",
+                    "company-post-jobs.html");
+
+                try { await _emailService.SendCompanyVerifiedAsync(company.User.Email, company.User.FullName, company.Name); }
+                catch { /* email xətası prosesi bloklamamalıdır */ }
+            }
 
             return Ok(ApiResponse.Ok($"Şirkət {(dto.IsVerified ? "təsdiqləndi" : "təsdiq ləğv edildi")}."));
         }
