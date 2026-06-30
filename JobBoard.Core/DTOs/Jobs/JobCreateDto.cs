@@ -95,6 +95,7 @@ namespace JobBoard.Core.DTOs.Jobs
         public DateTime CreatedAt { get; set; }
         public int ViewCount { get; set; }
         public int ApplicationCount { get; set; }
+        public string? Status { get; set; }
         public JobCompanyDto Company { get; set; } = null!;
         public JobCategoryDto Category { get; set; } = null!;
     }
@@ -106,7 +107,6 @@ namespace JobBoard.Core.DTOs.Jobs
         public string? Responsibilities { get; set; }
         public string? Benefits { get; set; }
         public string? SalaryPeriod { get; set; }
-        public string Status { get; set; } = null!;
         public List<string> RequiredSkills { get; set; } = [];
         public bool IsSaved { get; set; }
         public bool HasApplied { get; set; }

@@ -26,6 +26,13 @@ namespace JobBoard.Core.DTOs.Auth
         public bool RememberMe { get; set; }
     }
 
+    public class GoogleLoginDto
+    {
+        public string IdToken { get; set; } = null!;
+        // İlk dəfə qeydiyyatda rol seçimi (yoxdursa "candidate")
+        public string? Role { get; set; }
+    }
+
     public class RefreshTokenDto
     {
         public string RefreshToken { get; set; } = null!;

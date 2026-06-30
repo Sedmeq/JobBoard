@@ -51,25 +51,23 @@ namespace JobBoard.Infrastructure.Services
                 throw new ConflictException("Bu ilana artıq müraciət etmisiniz.");
 
             var user = await _db.Users
-                .Include(u => u.CandidateProfile)
-                    .ThenInclude(p => p.Skills)
                 .FirstOrDefaultAsync(u => u.Id == userId)
                 ?? throw new NotFoundException("İstifadəçi tapılmadı.");
 
+            // CandidateProfile navigation-u DbContext-də WithOne() boş konfiqurasiya
+            // edildiyi üçün Include ilə düzgün yüklənmir. Ona görə profili birbaşa
+            // UserId üzrə sorğulayırıq (My Resume səhifəsi ilə eyni üsul).
+            var profile = await _db.CandidateProfiles
+                .Include(p => p.Skills)
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
             // Profil tamamlanmayıbsa müraciətə icazə verilmir
-            var profile = user.CandidateProfile;
             var missing = new List<string>();
-            if (profile == null)
-            {
-                missing.Add("profil məlumatları");
-            }
-            else
-            {
-                if (string.IsNullOrWhiteSpace(profile.Headline)) missing.Add("Başlıq (Headline)");
-                if (string.IsNullOrWhiteSpace(profile.Summary)) missing.Add("Xülasə (Summary)");
-                if (string.IsNullOrWhiteSpace(profile.Location)) missing.Add("Məkan (Location)");
-                if (profile.Skills == null || !profile.Skills.Any()) missing.Add("Bacarıqlar (Skills)");
-            }
+            if (profile == null || string.IsNullOrWhiteSpace(profile.Headline)) missing.Add("Başlıq (Headline)");
+            if (profile == null || string.IsNullOrWhiteSpace(profile.Summary)) missing.Add("Xülasə (Summary)");
+            if (profile == null || string.IsNullOrWhiteSpace(profile.Location)) missing.Add("Məkan (Location)");
+            if (profile == null || profile.Skills == null || !profile.Skills.Any()) missing.Add("Bacarıqlar (Skills)");
+
             if (missing.Any())
                 throw new BadRequestException(
                     "Müraciət etməzdən əvvəl profilinizi tamamlayın. Çatışmayan məlumatlar: " +
@@ -77,7 +75,7 @@ namespace JobBoard.Infrastructure.Services
 
             string? resumeUrl = dto.ResumeUrl;
             if (dto.UseProfileResume && string.IsNullOrWhiteSpace(resumeUrl))
-                resumeUrl = user.CandidateProfile?.ResumeUrl;
+                resumeUrl = profile?.ResumeUrl;
 
             var application = new JobApplication
             {
@@ -104,14 +102,15 @@ namespace JobBoard.Infrastructure.Services
                 "application_status",
                 $"/candidate/applications/{application.Id}");
 
-            // İşəgötürənə email
+            // İşəgötürənə yalnız bildiriş (email göndərilmir)
             if (job.Company?.User != null)
             {
-                await _emailService.SendNewApplicationAsync(
-                    job.Company.User.Email,
-                    job.Company.User.FullName,
-                    user.FullName,
-                    job.Title);
+                await _notificationService.CreateNotificationAsync(
+                    job.Company.User.Id,
+                    "Yeni müraciət",
+                    $"{user.FullName} \"{job.Title}\" vəzifəsinə müraciət etdi.",
+                    "new_application",
+                    $"/company/jobs/{job.Id}/applications");
             }
 
             return await MapToDto(application, includeCandidate: false);

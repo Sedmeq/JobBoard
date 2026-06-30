@@ -192,6 +192,23 @@ namespace JobBoard.Infrastructure.Services
             var company = await _db.Companies.FirstOrDefaultAsync(c => c.UserId == userId)
                 ?? throw new NotFoundException("Şirkət profili tapılmadı.");
 
+            // 1) Profil tam doldurulmalıdır
+            var missing = new List<string>();
+            if (string.IsNullOrWhiteSpace(company.Description)) missing.Add("Təsvir (Description)");
+            if (string.IsNullOrWhiteSpace(company.Industry)) missing.Add("Sənaye (Industry)");
+            if (string.IsNullOrWhiteSpace(company.Location)) missing.Add("Məkan (Location)");
+            if (string.IsNullOrWhiteSpace(company.Phone)) missing.Add("Telefon (Phone)");
+            if (string.IsNullOrWhiteSpace(company.Email)) missing.Add("Email");
+            if (missing.Any())
+                throw new BadRequestException(
+                    "İş elanı yerləşdirmədən əvvəl şirkət profilini tam doldurun. Çatışmayan: " +
+                    string.Join(", ", missing) + ".");
+
+            // 2) Şirkət admin tərəfindən təsdiqlənməlidir
+            if (!company.IsVerified)
+                throw new BadRequestException(
+                    "Şirkətiniz hələ admin tərəfindən təsdiqlənməyib. Təsdiqdən sonra iş elanı yerləşdirə biləcəksiniz.");
+
             var category = await _db.Categories.FindAsync(dto.CategoryId)
                 ?? throw new NotFoundException("Kateqoriya tapılmadı.");
 
@@ -457,6 +474,7 @@ namespace JobBoard.Infrastructure.Services
             CreatedAt = j.CreatedAt,
             ViewCount = j.ViewCount,
             ApplicationCount = j.Applications?.Count ?? 0,
+            Status = j.Status,
             Company = new JobCompanyDto
             {
                 Id = j.Company.Id,

@@ -82,6 +82,8 @@ namespace JobBoard.API.Extensions
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<INotificationPublisher, JobBoard.API.Services.SignalRNotificationPublisher>();
             services.AddScoped<IChatService, ChatService>();
+            services.AddScoped<IPartnerService, PartnerService>();
+            services.AddScoped<ITestimonialService, TestimonialService>();
 
             services.AddScoped<IBlogService, BlogService>();
             services.AddScoped<ITransactionService, TransactionService>();

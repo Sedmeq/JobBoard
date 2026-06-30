@@ -5,11 +5,15 @@ using JobBoard.Core.Interfaces;
 using JobBoard.Core.Settings;
 using JobBoard.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace JobBoard.Infrastructure.Services
@@ -21,17 +25,23 @@ namespace JobBoard.Infrastructure.Services
         private readonly ITokenService _tokenService;
         private readonly IEmailService _emailService;
         private readonly JwtSettings _jwt;
+        private readonly IConfiguration _config;
+        private readonly IHttpClientFactory _httpClientFactory;
 
         public AuthService(
             AppDbContext db,
             ITokenService tokenService,
             IEmailService emailService,
-            IOptions<JwtSettings> jwt)
+            IOptions<JwtSettings> jwt,
+            IConfiguration config,
+            IHttpClientFactory httpClientFactory)
         {
             _db = db;
             _tokenService = tokenService;
             _emailService = emailService;
             _jwt = jwt.Value;
+            _config = config;
+            _httpClientFactory = httpClientFactory;
         }
 
         public async Task<string> RegisterAsync(RegisterDto dto)
@@ -113,6 +123,114 @@ namespace JobBoard.Infrastructure.Services
                     IsDarkMode = user.IsDarkMode
                 }
             };
+        }
+
+        public async Task<LoginResponseDto> GoogleLoginAsync(GoogleLoginDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.IdToken))
+                throw new BadRequestException("Google token tapılmadı.");
+
+            var clientId = _config["Google:ClientId"];
+            if (string.IsNullOrWhiteSpace(clientId))
+                throw new BadRequestException("Google girişi konfiqurasiya edilməyib (Google:ClientId).");
+
+            // Google ID token-i Google-ın tokeninfo endpoint-i ilə doğrula
+            var http = _httpClientFactory.CreateClient();
+            GoogleTokenInfo? info;
+            try
+            {
+                info = await http.GetFromJsonAsync<GoogleTokenInfo>(
+                    "https://oauth2.googleapis.com/tokeninfo?id_token=" + Uri.EscapeDataString(dto.IdToken));
+            }
+            catch
+            {
+                throw new UnauthorizedException("Google token doğrulana bilmədi.");
+            }
+
+            if (info == null || string.IsNullOrWhiteSpace(info.Email))
+                throw new UnauthorizedException("Google token etibarsızdır.");
+
+            // Token bu tətbiq üçün verilibmi?
+            if (!string.Equals(info.Aud, clientId, StringComparison.Ordinal))
+                throw new UnauthorizedException("Google token bu tətbiq üçün deyil.");
+
+            var email = info.Email.ToLower().Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+            {
+                // İlk dəfə — yeni istifadəçi yarat
+                var role = (dto.Role == "employer") ? "employer" : "candidate";
+                user = new User
+                {
+                    FullName = string.IsNullOrWhiteSpace(info.Name) ? email.Split('@')[0] : info.Name,
+                    Email = email,
+                    // Google ilə girişdə parol istifadə olunmur; təsadüfi güclü hash
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),
+                    Role = role,
+                    IsEmailVerified = true, // Google email-i artıq təsdiqlidir
+                    AvatarUrl = string.IsNullOrWhiteSpace(info.Picture) ? null : info.Picture,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.Users.Add(user);
+
+                if (role == "candidate")
+                    _db.CandidateProfiles.Add(new CandidateProfile { User = user });
+                else
+                    _db.Companies.Add(new Company { User = user, Name = user.FullName, CreatedAt = DateTime.UtcNow });
+
+                await _db.SaveChangesAsync();
+
+                try { await _emailService.SendWelcomeEmailAsync(user.Email, user.FullName); } catch { }
+            }
+            else
+            {
+                if (!user.IsActive)
+                    throw new UnauthorizedException("Hesabınız deaktiv edilib.");
+                if (user.IsBanned)
+                    throw new UnauthorizedException(string.IsNullOrWhiteSpace(user.BanReason)
+                        ? "Hesabınız admin tərəfindən ban edilib."
+                        : $"Hesabınız ban edilib: {user.BanReason}");
+
+                // Google ilə girən mövcud istifadəçinin email-ini təsdiqlənmiş say
+                if (!user.IsEmailVerified) user.IsEmailVerified = true;
+                if (string.IsNullOrWhiteSpace(user.AvatarUrl) && !string.IsNullOrWhiteSpace(info.Picture))
+                    user.AvatarUrl = info.Picture;
+            }
+
+            var accessToken = _tokenService.GenerateAccessToken(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(_jwt.RefreshTokenExpiryDays);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return new LoginResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = _jwt.AccessTokenExpiryMinutes * 60,
+                User = new UserInfoDto
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    Email = user.Email,
+                    Role = user.Role,
+                    AvatarUrl = user.AvatarUrl,
+                    IsDarkMode = user.IsDarkMode
+                }
+            };
+        }
+
+        private sealed class GoogleTokenInfo
+        {
+            [JsonPropertyName("aud")] public string? Aud { get; set; }
+            [JsonPropertyName("email")] public string? Email { get; set; }
+            [JsonPropertyName("email_verified")] public string? EmailVerified { get; set; }
+            [JsonPropertyName("name")] public string? Name { get; set; }
+            [JsonPropertyName("picture")] public string? Picture { get; set; }
+            [JsonPropertyName("sub")] public string? Sub { get; set; }
         }
 
         public async Task<LoginResponseDto> RefreshTokenAsync(string refreshToken)

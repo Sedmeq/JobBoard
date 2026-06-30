@@ -112,7 +112,12 @@ namespace JobBoard.Infrastructure.Services
         }
 
         public async Task<CandidateDetailDto> GetMeAsync(int userId)
-            => await GetByIdAsync(userId);
+        {
+            // Profil yoxdursa (məs. köhnə/seed istifadəçilər) avtomatik yarat
+            var exists = await _db.CandidateProfiles.AnyAsync(c => c.UserId == userId);
+            if (!exists) await CreateProfileForUserAsync(userId);
+            return await GetByIdAsync(userId);
+        }
 
         public async Task<CandidateDetailDto> UpdateMeAsync(int userId, CandidateUpdateDto dto)
         {
@@ -120,7 +125,7 @@ namespace JobBoard.Infrastructure.Services
                 .Include(c => c.Skills)
                 .Include(c => c.Languages)
                 .FirstOrDefaultAsync(c => c.UserId == userId)
-                ?? throw new NotFoundException("Profil tapılmadı.");
+                ?? await CreateProfileForUserAsync(userId);
 
             profile.Headline = dto.Headline;
             profile.Summary = dto.Summary;
@@ -335,8 +340,23 @@ namespace JobBoard.Infrastructure.Services
         // --- Helpers ---
 
         private async Task<CandidateProfile> GetProfileAsync(int userId)
-            => await _db.CandidateProfiles.FirstOrDefaultAsync(c => c.UserId == userId)
-               ?? throw new NotFoundException("Namizəd profili tapılmadı.");
+            => await _db.CandidateProfiles
+                .Include(c => c.Skills)
+                .Include(c => c.Languages)
+                .FirstOrDefaultAsync(c => c.UserId == userId)
+               ?? await CreateProfileForUserAsync(userId);
+
+        // Profil mövcud deyilsə cari istifadəçi üçün boş profil yaradır
+        private async Task<CandidateProfile> CreateProfileForUserAsync(int userId)
+        {
+            var userExists = await _db.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists) throw new NotFoundException("İstifadəçi tapılmadı.");
+
+            var profile = new CandidateProfile { UserId = userId, IsAvailable = true };
+            _db.CandidateProfiles.Add(profile);
+            await _db.SaveChangesAsync();
+            return profile;
+        }
 
         private static CandidateDetailDto MapToDetailDto(CandidateProfile c) => new()
         {

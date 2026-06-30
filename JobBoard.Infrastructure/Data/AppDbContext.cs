@@ -42,6 +42,12 @@ namespace JobBoard.Infrastructure.Data
         public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
+        // Partners (homepage logos)
+        public DbSet<Partner> Partners => Set<Partner>();
+
+        // Testimonials (homepage reviews)
+        public DbSet<Testimonial> Testimonials => Set<Testimonial>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

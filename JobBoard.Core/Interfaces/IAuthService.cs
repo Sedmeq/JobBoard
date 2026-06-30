@@ -13,6 +13,7 @@ namespace JobBoard.Core.Interfaces
     {
         Task<string> RegisterAsync(RegisterDto dto);
         Task<LoginResponseDto> LoginAsync(LoginDto dto);
+        Task<LoginResponseDto> GoogleLoginAsync(GoogleLoginDto dto);
         Task<LoginResponseDto> RefreshTokenAsync(string refreshToken);
         Task LogoutAsync(int userId, string refreshToken);
         Task<bool> VerifyEmailAsync(string token);

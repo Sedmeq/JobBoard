@@ -42,6 +42,15 @@ namespace JobBoard.API.Controllers
             return Ok(ApiResponse<LoginResponseDto>.Ok(result));
         }
 
+        /// <summary>Google ilə giriş / qeydiyyat (ID token)</summary>
+        [HttpPost("google")]
+        [EnableRateLimiting("login")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
+        {
+            var result = await _authService.GoogleLoginAsync(dto);
+            return Ok(ApiResponse<LoginResponseDto>.Ok(result));
+        }
+
         /// <summary>Access token yenilə</summary>
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh([FromBody] RefreshTokenDto dto)
